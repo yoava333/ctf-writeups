@@ -10,11 +10,11 @@ Everyone does a Rust sandbox, so we also have one!
 ## Intro to Rust
 Rust is a systems programming language that is designed to be memory safe like java/python but also delivers the same performance as languages like C++.
 Rust achieves this by using a sophisticated compiler technology that forbids having an object which is both shared and mutable. This prevents many classes of memory corruption bugs.
-It also comes with a package manager called cargo, which is used to build rust crates (libraries).
+It also comes with a package manager called cargo, which is used to build Rust crates (libraries).
 Rust has also builtin support for [FFI](https://en.wikipedia.org/wiki/Foreign_function_interface) (e.g. talking to C code) and an ability to relax the compiler restrictions using the [unsafe](https://doc.rust-lang.org/book/ch19-01-unsafe-rust.html) keyword to build abstraction which the compiler cannot reason about being safe. Both FFI and unsafe can change raw memory and cause a program not to be memory safe - this is also called unsound.
 
 ## The Challenge
-In the challenge [zip](bdf3d61937fa0e130646d358b445966f16870107defa368fbc66a249c94fd6e1.zip), we get two main files - `main.rs` - which the only rust source and a `Dockerfile`.
+In the challenge [zip](bdf3d61937fa0e130646d358b445966f16870107defa368fbc66a249c94fd6e1.zip), we get two main files - `main.rs` - which is the only Rust source and a `Dockerfile`.
 
 Let's first look at the `Dockerfile`:
 ```docker
@@ -49,7 +49,7 @@ Looks straight forward, the challenge setup downloads the rust toolchain, builds
 
 Noteworthy is the use of the nightly toolchain, in Rust, the nightly toolchain is where the language developers are allowed to experiment with unstable/bleeding edge features. It's also where new features like [nll](https://github.com/rust-lang/rfcs/blob/master/text/2094-nll.md) or [pin](https://github.com/rust-lang/rfcs/blob/master/text/2349-pin.md) were/are developed.
 
-The main challenge binary `sandbox-sandstone` will read rust code from the user, inject it into a rust project template and execute the user code.
+The main challenge binary `sandbox-sandstone` will read Rust code from the user, inject it into a Rust project template and execute the user code.
 
 Let's look at the `read_code` function:
 ```rust
@@ -111,7 +111,7 @@ The main function of our program will setup a `seccomp-bpf` filter which only al
 * And a trace event for syscall number `0x1337`
 
 Meaning that we cannot simply read the flag directly from the file system.
-Looking at the challenge binary we can see that after it executes our code it attaches to our process with ptrace and monitors our process and if we managed to execute syscall number `0x1337` it will print the flag:
+Looking at the challenge binary, it executes our code, attaches to our process with `ptrace` and continues to monitor our process for events. If we manage to execute syscall number `0x1337` the challenge binary will print the flag:
 
 ```rust
     loop {
@@ -142,9 +142,9 @@ Looking at the challenge binary we can see that after it executes our code it at
     }
 ```
 
-So our challenge is clear, we need to execute the syscall `0x1337`, however, it's not so simple. Rust doesn't allow calling directly to syscalls without using the unsafe keyword. So we somehow need to break the safety guarantees that rust provides and beat the compiler.
+So our challenge is clear, we need to execute the syscall `0x1337`, however, it's not so simple. Rust doesn't allow calling directly to syscalls without using the unsafe keyword. So we somehow need to break the safety guarantees that Rust provides and beat the compiler.
 
-My teammate `real` who is an experienced rust developer, encountered a crash in safe Rust using async code with the `Pin` trait in nightly rust. He suggested that we go through the Github issues for rust lang and try to find a bug that allows for memory corruptions. Helpfully rust has a label for bugs in the compiler that cause safety issues [`I-Unsound`](https://github.com/rust-lang/rust/issues?q=is%3Aopen+is%3Aissue+label%3A%22I-unsound+%F0%9F%92%A5%22). We started looking for a bug that is present in the nightly version that we were running and after a while, we got issue [57893](https://github.com/rust-lang/rust/issues/57893), which is a pretty interesting bug. Let's look at the code:
+My teammate `real` who is an experienced Rust developer, encountered a crash in safe Rust using async code with the `Pin` trait in nightly Rust. He suggested that we go through the Github issues for rust-lang and try to find a bug that allows for memory corruptions. Helpfully rust-lang has a label for bugs in the compiler that cause safety issues [`I-Unsound`](https://github.com/rust-lang/rust/issues?q=is%3Aopen+is%3Aissue+label%3A%22I-unsound+%F0%9F%92%A5%22). We started looking for a bug that is present in the nightly version that we were running and after a while, we got issue [57893](https://github.com/rust-lang/rust/issues/57893), which is a pretty interesting bug. Let's look at the code:
 
 ```rust
 trait Object {
@@ -178,10 +178,10 @@ fn main() {
 }
 ```
 
-The piece of code above allows you to transmute an object lifetime with another lifetime. [Lifetimes](https://doc.rust-lang.org/1.9.0/book/lifetimes.html) are how the rust compiler and language manage object reference validity, when a lifetime of an object ends it is dropped (destructed). Violating lifetime rules causes the famous rust compiler error: ```error[E0597]: `borrow` does not live long enough```.
+The piece of code above allows you to transmute an object lifetime with another lifetime. [Lifetimes](https://doc.rust-lang.org/1.9.0/book/lifetimes.html) are how the Rust compiler and language manage object reference validity, when a lifetime of an object ends it is dropped (destructed). Violating lifetime rules causes the famous Rust compiler error: ```error[E0597]: `borrow` does not live long enough```.
 
 The code above causes the compiler to think that we have a reference to a valid object while the object was already destructed. The reference in the code above points to a memory location on a higher stack frame.
-At first, it looked like a memory leak bug, but a closer inspection revealed that we can change the type to `mut`, which causes the reference to be writable, which eanbles us to write to the stack!
+At first, it looked like a memory leak bug, but a closer inspection revealed that we can change the type to `mut`, which causes the reference to be writable, which enables us to write to the stack!
 
 Our exploitation plan was as follows:
 
@@ -194,12 +194,12 @@ Our exploitation plan was as follows:
 
 ![Exploit plan](plan.png)
 
-We tried to build a recursion that will land on our stack pointer but it proved very hard to control, We actually have given up on the bug and moved to other issues.
-While working on other bugs we realized we could change the type of this function to return a slice (a reference to a continuous memory of some type) of `u64` then we can leak/write a lot more data which will enable us to write the rop chain directly to the stack.
+We tried to build a recursion that will land on our stack pointer, but it proved very hard to control. We actually have given up on the bug and moved to other issues.
+While working on other bugs we realized we could change the type of this function to return a slice (a reference to a continuous memory of some type) of `u64`. This will allow us to leak/write a lot more data which will enable us to write a rop chain directly to the stack.
 
-We had a working prototype but it didn't work on the challenge binary. It turns out that the binary is compiled with release flags and we were developing with a debug flags. Rust's llvm backend proved to be very powerful in inlining and optimizing the code, it eliminated our original recursion code and caused the dangling pointer code to be inlined to the main function and thus prevented us from using the bug since the dangling pointer laid within our stack frame.
+We had a working prototype but it didn't work on the challenge binary. It turns out that the binary is compiled with release flags, while we were developing with a debug flags. Rust's llvm backend proved to be very powerful in inlining and optimizing the code, it eliminated our original recursion code and caused the dangling pointer code to be inlined to the main function and thus prevented us from using the bug, since the dangling pointer laid within our stack frame.
 
-Luckily one of my teammates Liad is an llvm developer, which helped us kill the annoying optimizations - we used dyn trait (objects with vtable) to cause the dangling pointer to be from a higher frame and hard data dependencies within the recursion to prevent inlining.
+Luckily one of my teammates Liad is an llvm developer, which helped us kill the annoying optimizations - we used `dyn` trait (objects with vtable) to call the `get_dangling` function and get a dangling pointer to a higher stack frame, and hard data dependencies within the recursion to prevent inlining.
 
 Putting this all [together](ex.rs):
 
@@ -382,9 +382,9 @@ rec(&mut v, &mut b, r, n2, lib_c);
 }
 ```
 
-Finally we get the flag:
+Finally we got the flag:
 `CTF{InT3ndEd_8yP45_w45_g1tHu8_c0m_Ru5t_l4Ng_Ru5t_1ssue5_31287}`
 
 ## Final notes
 
-We didn't end up using issue 31287, I'm not sure it would have been easier to exploit than our issue. The challenge was really fun and interesting, I learned a lot more rust. However, as a hobbyist rust developer, it was really scary and painful to discover how many soundness bugs the language has, maybe it's time to start contributing to rust.
+We didn't end up using issue 31287, I'm not sure it would have been easier to exploit than our issue. The challenge was really fun and interesting, I learned a lot more Rust. However, as a hobbyist Rust developer, it was really scary and painful to discover how many soundness bugs the language has. Maybe it's time to start contributing to Rust.
